@@ -1,0 +1,39 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>Jwt</title>
+    </head>
+    <body>
+        <script>
+		
+			getJwt = function () {
+			    var xhr = new XMLHttpRequest();
+			    xhr.open('GET', '/getJwt', true);
+			    xhr.responseType = 'json';
+			    xhr.onload = function(e) {
+			      if (this.status == 200) {
+			       //console.log(this.getResponseHeader("Authorization"))
+			       secureDb(this.getResponseHeader("Authorization"))
+			      }
+			    };
+			    xhr.send();
+			}
+			
+			secureDb = function (jwt) {
+			    var xhr = new XMLHttpRequest();
+			    xhr.open('GET', '/secureDb', true);
+			    xhr.setRequestHeader ("Authorization", jwt);
+			    xhr.responseType = 'json';
+			    xhr.onload = function(e) {
+			      if (this.status == 200) {
+			       //console.log(this.getResponseHeader("Authorization"))
+			      }
+			    };
+			    xhr.send();
+			}
+			
+			getJwt()
+
+        </script>
+    </body>
+</html>
