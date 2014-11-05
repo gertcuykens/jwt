@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
 	"time"
 )
 
@@ -27,21 +25,11 @@ func init() {
 }
 
 func main() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		<-c
-		log.Print("deleting database sdb")
-		os.RemoveAll("sdb")
-		defer os.RemoveAll("sdb")
-		os.Exit(1)
-	}()
-
 	getJwtTest()
 	index := http.FileServer(http.Dir("static"))
 	http.Handle("/", index)
 	http.HandleFunc("/getJwt", getJwt)
-	http.HandleFunc("/secureDb", secureDb)
+	http.HandleFunc("/checkJwt", checkJwt)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -51,22 +39,19 @@ func getJwtTest() {
 	token := jwt.New(jwt.GetSigningMethod("RS256"))
 	token.Claims["PERMISSION"] = "ADMIN"
 	token.Claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-	var tokenString string
-	var e error
-	if tokenString, e = token.SignedString(privateKey); e != nil {
+	if tokenString, e := token.SignedString(privateKey); e != nil {
 		panic(e)
+	} else {
+		checkJwtTest(tokenString)
 	}
-	log.Printf("{\"string\": %v}", token)
-	secureDbTest(tokenString)
 }
 
-func secureDbTest(t string) {
+func checkJwtTest(t string) {
 	token, err := jwt.Parse(t, func(token *jwt.Token) (interface{}, error) {
 		return publicKey, nil
 	})
-	if err == nil && token.Valid {
+	if token.Valid {
 		log.Printf("%v", token)
-		sdb(token)
 	} else {
 		log.Printf("%s", err)
 	}
@@ -90,20 +75,19 @@ func getJwt(w http.ResponseWriter, r *http.Request) {
 	//log.Printf("%s", tokenString)
 }
 
-func secureDb(w http.ResponseWriter, r *http.Request) {
+func checkJwt(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	token, err := jwt.ParseFromRequest(r, func(token *jwt.Token) (interface{}, error) {
 		return publicKey, nil
 	})
-	if err == nil && token.Valid {
+	if token.Valid {
 		log.Printf("%v", token)
-		sdb(token)
 		//fmt.Fprintf(w, "{\"object\": %v}", token)
 
 	} else {
-		fmt.Fprintf(w, "{\"error\": \"%s %s\"}", "JWT not valid,", err)
 		log.Printf("%v", err)
+		fmt.Fprintf(w, "{\"error\": \"%s %s\"}", "JWT not valid,", err)
 	}
 }
 
