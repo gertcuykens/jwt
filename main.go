@@ -37,7 +37,7 @@ func main() {
 
 func getJwtTest() {
 	token := jwt.New(jwt.GetSigningMethod("RS256"))
-	token.Claims["PERMISSION"] = "ADMIN"
+	token.Claims["PERMISSION"] = "admin@tiedot"
 	token.Claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 	if tokenString, e := token.SignedString(privateKey); e != nil {
 		panic(e)
@@ -60,8 +60,10 @@ func checkJwtTest(t string) {
 /*****************************************************************************/
 
 func getJwt(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("email")
+	password := r.FormValue("password")
 	token := jwt.New(jwt.GetSigningMethod("RS256"))
-	token.Claims["PERMISSION"] = "ADMIN"
+	token.Claims[password] = name
 	token.Claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 	var tokenString string
 	var e error

@@ -2,53 +2,22 @@
 <html>
     <head>
         <title>Jwt</title>
-    </head>
-    <body>
-        <script>
-		
-			getJwt = function () {
-			    var xhr = new XMLHttpRequest();
-			    xhr.open('GET', '/getJwt', true);
-			    xhr.responseType = 'json';
-			    xhr.onload = function(e) {
-			      if (this.status == 200) {
-			       //console.log(this.getResponseHeader("Authorization"))
-			       checkJwt(this.getResponseHeader("Authorization"))
-				   jwTiedot(this.getResponseHeader("Authorization"))
-			      }
-			    };
-			    xhr.send();
-			}
-			
-			checkJwt = function (jwt) {
-			    var xhr = new XMLHttpRequest();
-			    xhr.open('GET', '/checkJwt', true);
-			    xhr.setRequestHeader ("Authorization", jwt);
-			    xhr.responseType = 'json';
-			    xhr.onload = function(e) {
-			      if (this.status == 200) {
-					
-			       //console.log(this.getResponseHeader("Authorization"))
-			      }
-			    };
-			    xhr.send();
-			}
-			
-			jwTiedot = function (jwt) {
-			    var xhr = new XMLHttpRequest();
-			    xhr.open('GET', '//localhost:8080/all', true);
-			    xhr.setRequestHeader ("Authorization", jwt);
-			    xhr.responseType = 'json';
-			    xhr.onload = function(e) {
-			      if (this.status == 200) {
-			       //console.log(this.getResponseHeader("Authorization"))
-			      }
-			    };
-			    xhr.send();
-			}
-		
-			getJwt()
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta charset="UTF-8">
 
-        </script>
+        <script src="bower_components/platform/platform.js"></script>
+
+        <link rel="icon" type="image/png" href="icon/favicon.png">
+
+        <link rel="import" href="bower_components/polymer/polymer.html">
+        <link rel="import" href="bower_components/font-roboto/roboto.html">
+		<link rel="import" href="bower_components/paper-input/paper-input.html">
+        <link rel="import" href="bower_components/paper-fab/paper-fab.html">
+		<link rel="import" href="jwt-tiedot.html">
+    
+	</head>
+    <body>
+		<jwt-tiedot></jwt-tiedot>
     </body>
 </html>
