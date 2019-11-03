@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "checkJs": false,
+    "experimentalDecorators": true
+  },
+  "exclude": [
+    ".cache",
+    "dist",
+    "node_modules"
+  ]
+}

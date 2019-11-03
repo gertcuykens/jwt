@@ -1,94 +1,98 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
 	"fmt"
-	jwt "github.com/dgrijalva/jwt-go"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
+
+	"github.com/gbrlsnchs/jwt/v3"
 )
 
-var (
-	privateKey []byte //openssl genrsa -out jwt.rsa 1024
-	publicKey  []byte //openssl rsa -in jwt.rsa -pubout > jwt.rsa.pub
-)
+type Server struct {
+	hs jwt.Algorithm
+}
 
-func init() {
-	var e error
-	if privateKey, e = ioutil.ReadFile("jwt.rsa"); e != nil {
-		panic(e)
+func NewServer() Server {
+	public, private, err := ed25519.GenerateKey(zero)
+	if err != nil {
+		panic(err)
 	}
-	if publicKey, e = ioutil.ReadFile("jwt.rsa.pub"); e != nil {
-		panic(e)
+
+	fmt.Print(string(encodePublicKey(ed25519.PublicKey(public))))
+
+	return Server{
+		jwt.NewEd25519(
+			jwt.Ed25519PrivateKey(
+				ed25519.PrivateKey(private)))}
+}
+
+func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
+	obj := struct {
+		usr string
+		pwd string
+	}{}
+	var c = json.NewDecoder(r.Body)
+	err := c.Decode(&obj)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
+
+	now := time.Now()
+	pl := jwt.Payload{
+		Issuer:         r.Referer(),
+		Subject:        obj.usr,
+		Audience:       jwt.Audience{"http://localhost:8080", "https://jwt.io"},
+		ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
+		IssuedAt:       jwt.NumericDate(now),
+		JWTID:          obj.pwd,
+	}
+
+	token, err := jwt.Sign(pl, s.hs)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Authorization", "Bearer "+string(token))
+	fmt.Fprintf(w, `{"Authorization": "Bearer %s"}`, string(token))
+	fmt.Printf("Bearer %s\n", token)
+}
+
+func (s Server) Verify(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Authorization")
+	token = strings.TrimPrefix(token, "Bearer ")
+	var pl jwt.Payload
+	_, err := jwt.Verify([]byte(token), s.hs, &pl)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+	fmt.Printf("%+v\n", pl)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Authorization", "Bearer "+string(token))
+	fmt.Fprintf(w, `{"Authorization": "Bearer %s"}`, string(token))
+	fmt.Printf("Bearer %s\n", token)
+}
+
+func encodePublicKey(publicKey ed25519.PublicKey) []byte {
+	x509PublicKey, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		panic(err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509PublicKey})
 }
 
 func main() {
-	getJwtTest()
-	index := http.FileServer(http.Dir("static"))
-	http.Handle("/", index)
-	http.HandleFunc("/getJwt", getJwt)
-	http.HandleFunc("/checkJwt", checkJwt)
-	log.Fatal(http.ListenAndServe(":8081", nil))
-}
-
-/*****************************************************************************/
-
-func getJwtTest() {
-	token := jwt.New(jwt.GetSigningMethod("RS256"))
-	token.Claims["PERMISSION"] = "admin@tiedot"
-	token.Claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-	if tokenString, e := token.SignedString(privateKey); e != nil {
-		panic(e)
-	} else {
-		checkJwtTest(tokenString)
-	}
-}
-
-func checkJwtTest(t string) {
-	token, err := jwt.Parse(t, func(token *jwt.Token) (interface{}, error) {
-		return publicKey, nil
-	})
-	if token.Valid {
-		log.Printf("%v", token)
-	} else {
-		log.Printf("%s", err)
-	}
-}
-
-/*****************************************************************************/
-
-func getJwt(w http.ResponseWriter, r *http.Request) {
-	name := r.FormValue("email")
-	password := r.FormValue("password")
-	token := jwt.New(jwt.GetSigningMethod("RS256"))
-	token.Claims[password] = name
-	token.Claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-	var tokenString string
-	var e error
-	if tokenString, e = token.SignedString(privateKey); e != nil {
-		panic(e)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Authorization", "Bearer "+tokenString)
-	w.WriteHeader(http.StatusOK)
-	//fmt.Fprintf(w, "{\"token\": \"%s\"}", tokenString)
-	//log.Printf("%s", tokenString)
-}
-
-func checkJwt(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	token, err := jwt.ParseFromRequest(r, func(token *jwt.Token) (interface{}, error) {
-		return publicKey, nil
-	})
-	if token.Valid {
-		log.Printf("%v", token)
-		//fmt.Fprintf(w, "{\"object\": %v}", token)
-
-	} else {
-		log.Printf("%v", err)
-		fmt.Fprintf(w, "{\"error\": \"%s %s\"}", "JWT not valid,", err)
-	}
+	s := NewServer()
+	http.Handle("/", http.FileServer(http.Dir("pub")))
+	http.HandleFunc("/sign", s.Sign)
+	http.HandleFunc("/verify", s.Verify)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
