@@ -17,7 +17,7 @@ import (
 )
 
 type Server struct {
-	hs jwt.Algorithm
+	c jwt.Algorithm
 	r  *rand.Rand
 }
 
@@ -61,7 +61,7 @@ func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
 		JWTID:          string(s.r.Intn(100)),
 	}
 
-	token, err := jwt.Sign(pl, s.hs)
+	token, err := jwt.Sign(pl, s.c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -90,14 +90,14 @@ func (s Server) Verify(w http.ResponseWriter, r *http.Request) {
 		plValidator  = jwt.ValidatePayload(&pl, iatValidator, expValidator, audValidator)
 	)
 
-	_, err := jwt.Verify([]byte(token), s.hs, &pl, hdValidator, plValidator)
+	_, err := jwt.Verify([]byte(token), s.c, &pl, hdValidator, plValidator)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s %+v", err, pl)
 		return
 	}
 
 	pl.ExpirationTime = jwt.NumericDate(now.Add(time.Hour))
-	refresh, err := jwt.Sign(pl, s.hs)
+	refresh, err := jwt.Sign(pl, s.c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
