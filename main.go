@@ -18,7 +18,7 @@ import (
 
 type Server struct {
 	c jwt.Algorithm
-	r  *rand.Rand
+	n *rand.Rand
 }
 
 func NewServer() Server {
@@ -49,7 +49,7 @@ func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: (usr, pwd)
+	// TODO: (usr, pwd)dssdsdasassa
 
 	now := time.Now()
 	pl := jwt.Payload{
@@ -58,7 +58,7 @@ func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
 		Audience:       jwt.Audience{"http://localhost:8080"},
 		ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
 		IssuedAt:       jwt.NumericDate(now),
-		JWTID:          string(s.r.Intn(100)),
+		JWTID:          string(s.n.Intn(100)),
 	}
 
 	token, err := jwt.Sign(pl, s.c)
