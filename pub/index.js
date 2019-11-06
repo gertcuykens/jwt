@@ -40,8 +40,6 @@ const client = async (url, token, obj) => {
 }
 
 test()
-// import('./index.js').then(m => index = m)
-
 
 // const obj = new FormData()
 // formData.append("usr", usr)

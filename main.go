@@ -49,7 +49,7 @@ func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: (usr, pwd)dssdsdasassa
+	// TODO: (usr, pwd)
 
 	now := time.Now()
 	pl := jwt.Payload{
