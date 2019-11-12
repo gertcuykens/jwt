@@ -3,29 +3,23 @@ function sleep(ms) {
 }
 
 export const test = async () => {
-  try {
-    const obj = await sign({
-      name: 'test',
-      method: 'GET',
-      path: '/test',
-    })
-    console.log(obj)
-  } catch (err) {
-    console.error(err);
-  }
+  await sign({
+    name: 'test',
+    method: 'GET',
+    path: '/test',
+  })
+    .catch(err => console.error(err))
+    .then(obj => console.log(obj))
 
   await sleep(2000)
 
-  try {
-    const obj = await verify({
-      name: 'test',
-      method: 'GET',
-      path: '/test',
-    })
-    console.log(obj)
-  } catch (err) {
-    console.error(err);
-  }
+  await verify({
+    name: 'test',
+    method: 'GET',
+    path: '/test',
+  })
+    .catch(err => console.error(err))
+    .then(obj => console.log(obj))
 }
 
 const sign = async (obj) => {
@@ -38,7 +32,7 @@ const sign = async (obj) => {
     body: JSON.stringify(obj)
   })
   console.log(response.headers.get('Authorization'))
-  return await response.json()
+  return response.json()
 }
 
 const verify = async (obj, token) => {
@@ -52,7 +46,7 @@ const verify = async (obj, token) => {
     body: JSON.stringify(obj)
   })
   console.log(response.headers.get('Authorization'))
-  return await response.json()
+  return response.json()
 }
 
 test()
