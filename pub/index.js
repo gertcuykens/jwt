@@ -3,14 +3,13 @@ function sleep(ms) {
 }
 
 export const test = async () => {
-  let token
   try {
-    const obj = await client('/sign', '', {
-      usr: '',
-      pwd: ''
+    const obj = await sign({
+      name: 'test',
+      method: 'GET',
+      path: '/test',
     })
     console.log(obj)
-    token = obj.Authorization
   } catch (err) {
     console.error(err);
   }
@@ -18,15 +17,32 @@ export const test = async () => {
   await sleep(2000)
 
   try {
-    const obj = await client('/verify', token)
+    const obj = await verify({
+      name: 'test',
+      method: 'GET',
+      path: '/test',
+    })
     console.log(obj)
   } catch (err) {
     console.error(err);
   }
 }
 
-const client = async (url, token, obj) => {
-  const response = await fetch(url, {
+const sign = async (obj) => {
+  const response = await fetch('/sign', {
+    method: 'POST',
+    cache: 'no-cache',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(obj)
+  })
+  console.log(response.headers.get('Authorization'))
+  return await response.json()
+}
+
+const verify = async (obj, token) => {
+  const response = await fetch('/verify', {
     method: 'POST',
     cache: 'no-cache',
     headers: {
@@ -40,7 +56,3 @@ const client = async (url, token, obj) => {
 }
 
 test()
-
-// const obj = new FormData()
-// formData.append("usr", usr)
-// formData.append("pwd", pwd)

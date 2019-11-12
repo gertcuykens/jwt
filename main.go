@@ -7,18 +7,20 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gbrlsnchs/jwt/v3"
 )
 
+type ServerPayload struct {
+	jwt.Payload
+	Method string `json:"method, omitempty"`
+}
+
 type Server struct {
 	c jwt.Algorithm
-	n *rand.Rand
 }
 
 func NewServer() Server {
@@ -26,39 +28,37 @@ func NewServer() Server {
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Print(string(encodePublicKey(ed25519.PublicKey(public))))
-
 	return Server{
 		jwt.NewEd25519(
 			jwt.Ed25519PrivateKey(
 				ed25519.PrivateKey(private))),
-		rand.New(rand.NewSource(0)),
 	}
 }
 
 func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
 	obj := struct {
-		usr string
-		pwd string
+		Name   string
+		Method string
+		Path   string
 	}{}
-	var c = json.NewDecoder(r.Body)
-	err := c.Decode(&obj)
+	err := json.NewDecoder(r.Body).Decode(&obj)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
-	// TODO: (usr, pwd)
-
 	now := time.Now()
-	pl := jwt.Payload{
-		Issuer:         r.Referer(),
-		Subject:        obj.usr,
-		Audience:       jwt.Audience{"http://localhost:8080"},
-		ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
-		IssuedAt:       jwt.NumericDate(now),
-		JWTID:          string(s.n.Intn(100)),
+	pl := ServerPayload{
+		Payload: jwt.Payload{
+			Issuer:         r.Referer(),
+			Subject:        obj.Path,
+			Audience:       jwt.Audience{os.Getenv("ORIGIN")},
+			ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
+			IssuedAt:       jwt.NumericDate(now),
+			JWTID:          obj.Name,
+		},
+		Method: obj.Method,
 	}
 
 	token, err := jwt.Sign(pl, s.c)
@@ -73,24 +73,25 @@ func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Authorization", "Bearer "+string(token))
 	fmt.Fprintf(w, `{"Authorization": "Bearer %s"}`, string(token))
-	// fmt.Printf("Bearer %s\n", string(token))
+	// TODO: Send to Authorization server
 }
 
 func (s Server) Verify(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("Authorization")
-	token = strings.TrimPrefix(token, "Bearer ")
+	// token := r.Header.Get("Authorization")
+	// token = strings.TrimPrefix(token, "Bearer ")
+	cookie, err := r.Cookie("Authorization")
 
 	var (
-		pl           jwt.Payload
+		pl           ServerPayload
 		now          = time.Now()
 		hdValidator  = jwt.ValidateHeader
 		iatValidator = jwt.IssuedAtValidator(now)
 		expValidator = jwt.ExpirationTimeValidator(now)
-		audValidator = jwt.AudienceValidator(jwt.Audience{"http://localhost:8080"})
-		plValidator  = jwt.ValidatePayload(&pl, iatValidator, expValidator, audValidator)
+		audValidator = jwt.AudienceValidator(jwt.Audience{os.Getenv("ORIGIN")})
+		plValidator  = jwt.ValidatePayload(&pl.Payload, iatValidator, expValidator, audValidator)
 	)
 
-	_, err := jwt.Verify([]byte(token), s.c, &pl, hdValidator, plValidator)
+	_, err = jwt.Verify([]byte(cookie.Value), s.c, &pl, hdValidator, plValidator)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s %+v", err, pl)
 		return
@@ -105,11 +106,12 @@ func (s Server) Verify(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("%+v\n", pl)
 
-	http.SetCookie(w, &http.Cookie{Name: "Authorization", Value: string(refresh)})
+	http.SetCookie(w, &http.Cookie{Name: "Authorization", Value: string(refresh), HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Authorization", "Bearer "+string(refresh))
 	fmt.Fprintf(w, `{"Authorization": "Bearer %s"}`, string(refresh))
-	// fmt.Printf("Bearer %s\n", string(refresh))
+	// TODO: Verify Authorization server
+	// TODO: Send to Authorization server
 }
 
 func encodePublicKey(publicKey ed25519.PublicKey) []byte {
@@ -121,6 +123,7 @@ func encodePublicKey(publicKey ed25519.PublicKey) []byte {
 }
 
 func main() {
+	fmt.Println(os.Getenv("ORIGIN"))
 	s := NewServer()
 	http.Handle("/", http.FileServer(http.Dir("pub")))
 	http.HandleFunc("/sign", s.Sign)
