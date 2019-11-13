@@ -44,7 +44,7 @@ func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
 	}{}
 	err := json.NewDecoder(r.Body).Decode(&obj)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		jsonResponse(w, err, 500)
 		return
 	}
 
@@ -63,22 +63,16 @@ func (s Server) Sign(w http.ResponseWriter, r *http.Request) {
 
 	token, err := jwt.Sign(pl, s.c)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		jsonResponse(w, err, 500)
 		return
 	}
 
-	fmt.Printf("%+v\n", pl)
-
 	http.SetCookie(w, &http.Cookie{Name: "Authorization", Value: string(token)})
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Authorization", "Bearer "+string(token))
-	fmt.Fprintf(w, `{"Authorization": "Bearer %s"}`, string(token))
+	jsonResponse(w, string(token), 200)
 	// TODO: Send to Authorization server
 }
 
 func (s Server) Verify(w http.ResponseWriter, r *http.Request) {
-	// token := r.Header.Get("Authorization")
-	// token = strings.TrimPrefix(token, "Bearer ")
 	cookie, err := r.Cookie("Authorization")
 
 	var (
@@ -93,25 +87,21 @@ func (s Server) Verify(w http.ResponseWriter, r *http.Request) {
 
 	_, err = jwt.Verify([]byte(cookie.Value), s.c, &pl, hdValidator, plValidator)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s %+v", err, pl)
+		jsonResponse(w, err, 500)
 		return
 	}
 
 	pl.ExpirationTime = jwt.NumericDate(now.Add(time.Hour))
-	refresh, err := jwt.Sign(pl, s.c)
+	token, err := jwt.Sign(pl, s.c)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		jsonResponse(w, err, 500)
 		return
 	}
+	// fmt.Printf("%+v\n", pl)
 
-	fmt.Printf("%+v\n", pl)
-
-	http.SetCookie(w, &http.Cookie{Name: "Authorization", Value: string(refresh), HttpOnly: true, SameSite: http.SameSiteStrictMode})
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Authorization", "Bearer "+string(refresh))
-	fmt.Fprintf(w, `{"Authorization": "Bearer %s"}`, string(refresh))
+	http.SetCookie(w, &http.Cookie{Name: "Authorization", Value: string(token), HttpOnly: true, SameSite: http.SameSiteStrictMode})
+	jsonResponse(w, string(token), 200)
 	// TODO: Verify Authorization server
-	// TODO: Send to Authorization server
 }
 
 func encodePublicKey(publicKey ed25519.PublicKey) []byte {
@@ -128,5 +118,21 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir("pub")))
 	http.HandleFunc("/sign", s.Sign)
 	http.HandleFunc("/verify", s.Verify)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8081", nil))
+}
+
+func jsonResponse(w http.ResponseWriter, v interface{}, c int) {
+	if c != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "%d - %+v\n", c, v)
+	}
+	j, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "500 - ", err)
+		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(c)
+	w.Write(j)
 }

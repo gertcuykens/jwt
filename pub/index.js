@@ -31,7 +31,6 @@ const sign = async (obj) => {
     },
     body: JSON.stringify(obj)
   })
-  console.log(response.headers.get('Authorization'))
   return response.json()
 }
 
@@ -45,8 +44,9 @@ const verify = async (obj, token) => {
     },
     body: JSON.stringify(obj)
   })
-  console.log(response.headers.get('Authorization'))
   return response.json()
 }
 
 test()
+
+// console.log(response.headers.get('Authorization'))
