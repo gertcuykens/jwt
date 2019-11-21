@@ -2,20 +2,31 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/gertcuykens/jwt"
 )
 
 func main() {
-	fmt.Println(os.Getenv("ORIGIN"))
-	s := jwt.NewServer(nil)
-	http.HandleFunc("/subject", s.Subject)
-	http.HandleFunc("/delete", s.Delete)
-	http.HandleFunc("/sign/", s.Sign)
-	http.HandleFunc("/verify", s.Verify)
-	http.Handle("/", http.FileServer(http.Dir("./pub")))
-	log.Fatal(http.ListenAndServe(":8082", nil))
+	origin, err := url.Parse(os.Getenv("ORIGIN"))
+	if err != nil {
+		panic(err)
+	}
+
+	p := origin.Port()
+	if os.Getenv("PORT") != "" {
+		p = os.Getenv("PORT")
+	}
+
+	mux := jwt.NewServeMux(nil)
+	mux.HandleFunc("/origin", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, "%q", os.Getenv("ORIGIN"))
+	})
+	mux.Handle("/", http.FileServer(http.Dir("./pub")))
+	if err := http.ListenAndServe(":"+p, corsHandler(mux)); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 }
