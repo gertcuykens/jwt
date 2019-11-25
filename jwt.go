@@ -3,7 +3,6 @@ package jwt
 import (
 	"context"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gbrlsnchs/jwt/v3"
@@ -13,7 +12,7 @@ type Cookie string
 
 type Authorization jwt.Payload
 
-func Sign(c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+func Sign(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Authorization")
 		if err != nil {
@@ -23,9 +22,9 @@ func Sign(c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 
 		now := time.Now()
 		pl := Authorization{
-			Issuer:         r.Referer(),
+			Issuer:         iss,
 			Subject:        cookie.Value,
-			Audience:       jwt.Audience{os.Getenv("ORIGIN")},
+			Audience:       jwt.Audience{r.Referer()},
 			ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
 			IssuedAt:       jwt.NumericDate(now),
 			JWTID:          randS64(),
@@ -45,7 +44,7 @@ func Sign(c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func Verify(c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+func Verify(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Authorization")
 		if err != nil {
@@ -59,8 +58,9 @@ func Verify(c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 			hdValidator  = jwt.ValidateHeader
 			iatValidator = jwt.IssuedAtValidator(now)
 			expValidator = jwt.ExpirationTimeValidator(now)
-			audValidator = jwt.AudienceValidator(jwt.Audience{os.Getenv("ORIGIN")})
-			plValidator  = jwt.ValidatePayload(&pl, iatValidator, expValidator, audValidator)
+			issValidator = jwt.IssuerValidator(iss)
+			// audValidator    = jwt.AudienceValidator(jwt.Audience{})
+			plValidator = jwt.ValidatePayload(&pl, iatValidator, expValidator, issValidator)
 		)
 
 		_, err = jwt.Verify([]byte(cookie.Value), c, &pl, hdValidator, plValidator)

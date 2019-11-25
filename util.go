@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 )
@@ -33,7 +34,8 @@ func jsonResponse(w http.ResponseWriter, v interface{}, c int) {
 func encodePublicKey(publicKey ed25519.PublicKey) []byte {
 	x509PublicKey, err := x509.MarshalPKIXPublicKey(publicKey)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		return nil
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509PublicKey})
 }
@@ -42,7 +44,8 @@ func decodePublicKey(pemPublicKey []byte) ed25519.PublicKey {
 	block, _ := pem.Decode(pemPublicKey)
 	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		return nil
 	}
 	return publicKey.(ed25519.PublicKey)
 }
@@ -65,4 +68,21 @@ func randU64() uint64 {
 		panic(err)
 	}
 	return binary.LittleEndian.Uint64(buf)
+}
+
+func get(r *http.Request, f func([]byte)) error {
+	res, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return err
+	}
+	b, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return err
+	}
+	f(b)
+	if c, ok := res.Header["Set-Cookie"]; ok {
+		r.Header = http.Header{"Cookie": c}
+	}
+	return nil
 }

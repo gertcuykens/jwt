@@ -20,7 +20,7 @@ func main() {
 		p = os.Getenv("PORT")
 	}
 
-	mux := jwt.NewServeMux(nil)
+	mux := jwt.NewServeMux(os.Getenv("ORIGIN")+"/public", nil)
 	mux.HandleFunc("/origin", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%q", os.Getenv("ORIGIN"))

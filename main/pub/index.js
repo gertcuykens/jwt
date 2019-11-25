@@ -22,6 +22,10 @@ export const verify = () => get('/verify')
   .catch(err => console.error(err))
   .then(obj => console.log(obj === null))
 
+export const v25519 = () => get('/25519')
+  .catch(err => console.error(err))
+  .then(obj => console.log(obj))
+
 export const logout = () => get('/logout')
   .catch(err => console.error(err))
   .then(obj => console.log(obj))

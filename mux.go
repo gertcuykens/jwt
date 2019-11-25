@@ -8,7 +8,7 @@ import (
 	"github.com/gbrlsnchs/jwt/v3"
 )
 
-func NewServeMux(r io.Reader) *http.ServeMux {
+func NewServeMux(iss string, r io.Reader) *http.ServeMux {
 	public, private, err := ed25519.GenerateKey(r)
 	if err != nil {
 		panic(err)
@@ -25,7 +25,7 @@ func NewServeMux(r io.Reader) *http.ServeMux {
 		w.Write(encodePublicKey(ed25519.PublicKey(public)))
 	})
 
-	x.HandleFunc("/sign", Sign(c, func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/sign", Sign(iss, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		v := ctx.Value(Cookie("Authorization"))
 		if v == nil {
@@ -36,7 +36,7 @@ func NewServeMux(r io.Reader) *http.ServeMux {
 		jsonResponse(w, v.(string), http.StatusOK)
 	}))
 
-	x.HandleFunc("/verify", Verify(c, func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/verify", Verify(iss, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		v := ctx.Value(Cookie("Error"))
 		if v == nil {
@@ -44,6 +44,17 @@ func NewServeMux(r io.Reader) *http.ServeMux {
 			return
 		}
 		jsonResponse(w, v.(error).Error(), http.StatusUnauthorized)
+	}))
+
+	x.HandleFunc("/25519", Verify25519(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		v := ctx.Value(Cookie("Authorization"))
+		if v == nil {
+			jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
+			return
+		}
+		pl := v.(Authorization)
+		jsonResponse(w, pl, http.StatusOK)
 	}))
 
 	x.HandleFunc("/authorization", func(w http.ResponseWriter, r *http.Request) {

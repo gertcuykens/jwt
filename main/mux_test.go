@@ -15,7 +15,7 @@ import (
 )
 
 func ExampleServeMux() {
-	x := jwt.NewServeMux(zero)
+	x := jwt.NewServeMux("http://localhost:8080", zero)
 	ts := httptest.NewServer(x)
 	defer ts.Close()
 
@@ -29,6 +29,9 @@ func ExampleServeMux() {
 	r.URL, _ = url.ParseRequestURI(ts.URL + "/verify")
 	get(r, func(b []byte) {})
 	cookie, _ := r.Cookie("Authorization")
+
+	// r.URL, _ = url.ParseRequestURI(ts.URL + "/25519")
+	// get(r, func(b []byte) { fmt.Println(string(b)) })
 
 	t := strings.Split(cookie.Value, ".")
 	if len(t) < 3 {
