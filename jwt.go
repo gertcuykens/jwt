@@ -13,7 +13,9 @@ type Cookie string
 
 type Authorization jwt.Payload
 
-func Sign(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+type Algorithm jwt.Algorithm
+
+func Sign(iss string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Authorization")
 		if err != nil {
@@ -51,7 +53,7 @@ func Sign(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func Verify(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+func Verify(iss string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Authorization")
 		if err != nil {
