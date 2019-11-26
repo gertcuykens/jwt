@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -85,4 +86,16 @@ func get(r *http.Request, f func([]byte)) error {
 		r.Header = http.Header{"Cookie": c}
 	}
 	return nil
+}
+
+func referer(u *url.URL) string {
+	p := ":" + u.Port()
+	if p == ":" {
+		p = ""
+	}
+	s := u.Scheme + "://"
+	if s == "://" {
+		s = ""
+	}
+	return s + u.Hostname() + p
 }

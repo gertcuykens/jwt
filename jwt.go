@@ -31,7 +31,7 @@ func Sign(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 		pl := Authorization{
 			Issuer:         iss,
 			Subject:        cookie.Value,
-			Audience:       jwt.Audience{ref.Scheme + "://" + ref.Hostname() + ":" + ref.Port()},
+			Audience:       jwt.Audience{referer(ref)},
 			ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
 			IssuedAt:       jwt.NumericDate(now),
 			JWTID:          randS64(),
@@ -72,7 +72,7 @@ func Verify(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 			iatValidator = jwt.IssuedAtValidator(now)
 			expValidator = jwt.ExpirationTimeValidator(now)
 			issValidator = jwt.IssuerValidator(iss)
-			audValidator = jwt.AudienceValidator(jwt.Audience{ref.Scheme + "://" + ref.Hostname() + ":" + ref.Port()})
+			audValidator = jwt.AudienceValidator(jwt.Audience{referer(ref)})
 			plValidator  = jwt.ValidatePayload(&pl, iatValidator, expValidator, issValidator, audValidator)
 		)
 
