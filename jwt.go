@@ -3,6 +3,7 @@ package jwt
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gbrlsnchs/jwt/v3"
@@ -20,11 +21,17 @@ func Sign(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		ref, err := url.Parse(r.Referer())
+		if err != nil {
+			jsonResponse(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
 		now := time.Now()
 		pl := Authorization{
 			Issuer:         iss,
 			Subject:        cookie.Value,
-			Audience:       jwt.Audience{r.Referer()},
+			Audience:       jwt.Audience{ref.Scheme + "://" + ref.Hostname() + ":" + ref.Port()},
 			ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
 			IssuedAt:       jwt.NumericDate(now),
 			JWTID:          randS64(),
@@ -52,6 +59,12 @@ func Verify(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		ref, err := url.Parse(r.Referer())
+		if err != nil {
+			jsonResponse(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
 		var (
 			pl           jwt.Payload
 			now          = time.Now()
@@ -59,8 +72,8 @@ func Verify(iss string, c jwt.Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 			iatValidator = jwt.IssuedAtValidator(now)
 			expValidator = jwt.ExpirationTimeValidator(now)
 			issValidator = jwt.IssuerValidator(iss)
-			// audValidator    = jwt.AudienceValidator(jwt.Audience{})
-			plValidator = jwt.ValidatePayload(&pl, iatValidator, expValidator, issValidator)
+			audValidator = jwt.AudienceValidator(jwt.Audience{ref.Scheme + "://" + ref.Hostname() + ":" + ref.Port()})
+			plValidator  = jwt.ValidatePayload(&pl, iatValidator, expValidator, issValidator, audValidator)
 		)
 
 		_, err = jwt.Verify([]byte(cookie.Value), c, &pl, hdValidator, plValidator)

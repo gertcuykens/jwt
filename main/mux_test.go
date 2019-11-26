@@ -23,14 +23,14 @@ func ExampleServeMux() {
 	r.AddCookie(&http.Cookie{Name: "Authorization", Value: "test", HttpOnly: true, SameSite: http.SameSiteNoneMode})
 	get(r, func(b []byte) {})
 
-	r.URL, _ = url.ParseRequestURI(ts.URL + "/sign")
+	r.URL, _ = url.Parse(ts.URL + "/sign")
 	get(r, func(b []byte) {})
 
-	r.URL, _ = url.ParseRequestURI(ts.URL + "/verify")
+	r.URL, _ = url.Parse(ts.URL + "/verify")
 	get(r, func(b []byte) {})
 	cookie, _ := r.Cookie("Authorization")
 
-	// r.URL, _ = url.ParseRequestURI(ts.URL + "/25519")
+	// r.URL, _ = url.Parse(ts.URL + "/25519")
 	// get(r, func(b []byte) { fmt.Println(string(b)) })
 
 	t := strings.Split(cookie.Value, ".")
@@ -51,7 +51,7 @@ func ExampleServeMux() {
 	t2, _ := base64.RawURLEncoding.DecodeString(t[2])
 
 	var public ed25519.PublicKey
-	r.URL, _ = url.ParseRequestURI(ts.URL + "/public")
+	r.URL, _ = url.Parse(ts.URL + "/public")
 	get(r, func(b []byte) { public = decodePublicKey(b) })
 
 	valid := ed25519.Verify(public, t0, t2)
