@@ -81,6 +81,7 @@ func Verify(iss string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 		_, err = jwt.Verify([]byte(cookie.Value), c, &pl, hdValidator, plValidator)
 
 		ctx := r.Context()
+		ctx = context.WithValue(ctx, Cookie("Authorization"), pl)
 		ctx = context.WithValue(ctx, Cookie("Error"), err)
 		r = r.WithContext(ctx)
 
