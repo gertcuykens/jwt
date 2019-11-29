@@ -38,23 +38,26 @@ func NewServeMux(iss string, r io.Reader) *http.ServeMux {
 
 	x.HandleFunc("/verify", Verify(iss, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		v := ctx.Value(Cookie("Error"))
-		if v == nil {
-			jsonResponse(w, nil, http.StatusOK)
+		if v := ctx.Value(Cookie("Error")); v != nil {
+			jsonResponse(w, v.(error).Error(), http.StatusUnauthorized)
 			return
 		}
-		jsonResponse(w, v.(error).Error(), http.StatusUnauthorized)
+		if v := ctx.Value(Cookie("Authorization")); v != nil {
+			pl := v.(Authorization)
+			jsonResponse(w, pl, http.StatusOK)
+			return
+		}
+		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
 	}))
 
 	x.HandleFunc("/25519", Verify25519(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		v := ctx.Value(Cookie("Authorization"))
-		if v == nil {
-			jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
+		if v := ctx.Value(Cookie("Authorization")); v != nil {
+			pl := v.(Authorization)
+			jsonResponse(w, pl, http.StatusOK)
 			return
 		}
-		pl := v.(Authorization)
-		jsonResponse(w, pl, http.StatusOK)
+		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
 	}))
 
 	x.HandleFunc("/authorization", func(w http.ResponseWriter, r *http.Request) {
