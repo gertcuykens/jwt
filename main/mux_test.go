@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,7 +14,7 @@ import (
 )
 
 func ExampleServeMux() {
-	x := jwt.NewServeMux("http://localhost:8080", zero)
+	x := NewServeMux("http://localhost:8080", zero)
 	ts := httptest.NewServer(x)
 	defer ts.Close()
 
@@ -60,21 +59,4 @@ func ExampleServeMux() {
 	// Output:
 	// test
 	// verified: true
-}
-
-func get(r *http.Request, f func([]byte)) error {
-	res, err := http.DefaultClient.Do(r)
-	if err != nil {
-		return err
-	}
-	b, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
-	if err != nil {
-		return err
-	}
-	f(b)
-	if c, ok := res.Header["Set-Cookie"]; ok {
-		r.Header = http.Header{"Cookie": c}
-	}
-	return nil
 }

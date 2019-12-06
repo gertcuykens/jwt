@@ -1,59 +1,58 @@
-package jwt
+package main
 
 import (
-	"crypto/ed25519"
 	"io"
 	"net/http"
 
-	"github.com/gbrlsnchs/jwt/v3"
+	"github.com/gertcuykens/jwt"
 )
 
 func NewServeMux(iss string, r io.Reader) *http.ServeMux {
-	public, private, err := ed25519.GenerateKey(r)
-	if err != nil {
-		panic(err)
-	}
-
-	c := jwt.NewEd25519(
-		jwt.Ed25519PrivateKey(
-			ed25519.PrivateKey(private)))
+	c := NewEd25519()
 
 	x := http.NewServeMux()
 
 	x.HandleFunc("/public", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-		w.Write(encodePublicKey(ed25519.PublicKey(public)))
+		w.Write(encodePublicKey(c.Public()))
 	})
 
-	x.HandleFunc("/sign", Sign(iss, c, func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/sign", jwt.Sign(iss, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		v := ctx.Value(Cookie("Authorization"))
-		if v == nil {
-			jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
+		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
+			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
 			return
 		}
-		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: v.(string), HttpOnly: true, SameSite: http.SameSiteNoneMode})
-		jsonResponse(w, v.(string), http.StatusOK)
+		if v := ctx.Value(jwt.Cookie("Authorization")); v != nil {
+			http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: v.(string), HttpOnly: true, SameSite: http.SameSiteNoneMode})
+			jsonResponse(w, v.(string), http.StatusOK)
+			return
+		}
+		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
 	}))
 
-	x.HandleFunc("/verify", Verify(iss, c, func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/verify", jwt.Verify(iss, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if v := ctx.Value(Cookie("Error")); v != nil {
-			jsonResponse(w, v.(error).Error(), http.StatusUnauthorized)
+		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
+			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
 			return
 		}
-		if v := ctx.Value(Cookie("Authorization")); v != nil {
-			pl := v.(Authorization)
+		if v := ctx.Value(jwt.Cookie("Authorization")); v != nil {
+			pl := v.(jwt.Authorization)
 			jsonResponse(w, pl, http.StatusOK)
 			return
 		}
 		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
 	}))
 
-	x.HandleFunc("/25519", Verify25519(func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/25519", jwt.Verify25519(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if v := ctx.Value(Cookie("Authorization")); v != nil {
-			pl := v.(Authorization)
+		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
+			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
+			return
+		}
+		if v := ctx.Value(jwt.Cookie("Authorization")); v != nil {
+			pl := v.(jwt.Authorization)
 			jsonResponse(w, pl, http.StatusOK)
 			return
 		}

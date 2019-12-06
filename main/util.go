@@ -1,4 +1,4 @@
-package jwt
+package main
 
 import (
 	"crypto/ed25519"
@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -14,6 +15,22 @@ import (
 	"net/url"
 	"os"
 )
+
+func jsonResponse(w http.ResponseWriter, v interface{}, c int) {
+	if c != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "%d - %+v\n", c, v)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	j, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, http.StatusInternalServerError, " - ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%q", err)
+		return
+	}
+	w.WriteHeader(c)
+	w.Write(j)
+}
 
 func encodePublicKey(publicKey ed25519.PublicKey) []byte {
 	x509PublicKey, err := x509.MarshalPKIXPublicKey(publicKey)
