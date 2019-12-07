@@ -194,3 +194,44 @@ func VerifyA(fn http.HandlerFunc) http.HandlerFunc {
 		fn(w, r.WithContext(ctx))
 	}
 }
+
+func VerifyB(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		cookie, err := r.Cookie("Authorization")
+		if err != nil {
+			ctx = context.WithValue(ctx, Cookie("Error"), err)
+			fn(w, r.WithContext(ctx))
+			return
+		}
+
+		a, err := http.NewRequest("GET", r.Referer(), nil)
+		if err != nil {
+			ctx = context.WithValue(ctx, Cookie("Error"), err)
+			fn(w, r.WithContext(ctx))
+			return
+		}
+		a.AddCookie(&http.Cookie{Name: "Authorization", Value: cookie.Value, HttpOnly: true, SameSite: http.SameSiteNoneMode})
+		a.Header.Set("Referer", r.Referer())
+
+		resp, err := http.DefaultClient.Do(a)
+		if err != nil {
+			ctx = context.WithValue(ctx, Cookie("Error"), err)
+			fn(w, r.WithContext(ctx))
+			return
+		}
+		defer resp.Body.Close()
+
+		var pl Authorization
+		err = json.NewDecoder(resp.Body).Decode(&pl)
+		if err != nil {
+			ctx = context.WithValue(ctx, Cookie("Error"), err)
+			fn(w, r.WithContext(ctx))
+			return
+		}
+
+		ctx = context.WithValue(ctx, Cookie("Authorization"), pl)
+		fn(w, r.WithContext(ctx))
+	}
+}
