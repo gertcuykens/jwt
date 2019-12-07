@@ -20,7 +20,7 @@ type Authorization jwt.Payload
 
 type Algorithm jwt.Algorithm
 
-func Sign(iss string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+func Sign(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -35,7 +35,7 @@ func Sign(iss string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 		pl := Authorization{
 			Issuer:         iss,
 			Subject:        cookie.Value,
-			Audience:       jwt.Audience{r.Referer()},
+			Audience:       jwt.Audience(aud),
 			ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
 			IssuedAt:       jwt.NumericDate(now),
 			JWTID:          randS64(),

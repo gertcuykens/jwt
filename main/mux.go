@@ -7,7 +7,7 @@ import (
 	"github.com/gertcuykens/jwt"
 )
 
-func NewServeMux(iss string, r io.Reader) *http.ServeMux {
+func NewServeMux(iss string, aud []string, r io.Reader) *http.ServeMux {
 	c := NewEd25519()
 
 	x := http.NewServeMux()
@@ -17,7 +17,7 @@ func NewServeMux(iss string, r io.Reader) *http.ServeMux {
 		w.Write(encodePublicKey(c.Public()))
 	})
 
-	x.HandleFunc("/sign", jwt.Sign(iss, c, func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/sign", jwt.Sign(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
 			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)

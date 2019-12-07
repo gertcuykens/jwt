@@ -14,7 +14,7 @@ import (
 )
 
 func ExampleServeMux() {
-	x := NewServeMux("http://localhost:8080", zero)
+	x := NewServeMux("http://localhost:8080", []string{"http://localhost:8080/"}, zero)
 	ts := httptest.NewServer(x)
 	defer ts.Close()
 
@@ -25,12 +25,7 @@ func ExampleServeMux() {
 	r.URL, _ = url.Parse(ts.URL + "/sign")
 	get(r, func(b []byte) {})
 
-	r.URL, _ = url.Parse(ts.URL + "/verify")
-	get(r, func(b []byte) {})
 	cookie, _ := r.Cookie("Authorization")
-
-	// r.URL, _ = url.Parse(ts.URL + "/25519")
-	// get(r, func(b []byte) { fmt.Println(string(b)) })
 
 	t := strings.Split(cookie.Value, ".")
 	if len(t) < 3 {
@@ -53,10 +48,15 @@ func ExampleServeMux() {
 	r.URL, _ = url.Parse(ts.URL + "/public")
 	get(r, func(b []byte) { public = decodePublicKey(b) })
 
-	valid := ed25519.Verify(public, t0, t2)
-	fmt.Println("verified:", valid)
+	fmt.Println("verified:", ed25519.Verify(public, t0, t2))
 
 	// Output:
 	// test
 	// verified: true
 }
+
+// r.URL, _ = url.Parse(ts.URL + "/verify")
+// get(r, func(b []byte) {})
+
+// r.URL, _ = url.Parse(ts.URL + "/25519")
+// get(r, func(b []byte) { fmt.Println(string(b)) })
