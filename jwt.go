@@ -53,7 +53,7 @@ func Sign(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.Handl
 	}
 }
 
-func Verify(iss string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+func Verify(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -71,7 +71,7 @@ func Verify(iss string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 			iatValidator = jwt.IssuedAtValidator(now)
 			expValidator = jwt.ExpirationTimeValidator(now)
 			issValidator = jwt.IssuerValidator(iss)
-			audValidator = jwt.AudienceValidator(jwt.Audience{r.Referer()})
+			audValidator = jwt.AudienceValidator(jwt.Audience(aud))
 			plValidator  = jwt.ValidatePayload(&pl, iatValidator, expValidator, issValidator, audValidator)
 		)
 

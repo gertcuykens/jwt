@@ -18,7 +18,7 @@ func main() {
 		p = os.Getenv("PORT")
 	}
 
-	mux := NewServeMux(os.Getenv("ORIGIN")+"/public", []string{os.Getenv("ORIGIN") + "/"}, nil)
+	mux := NewServeMux(os.Getenv("ORIGIN")+"/public", []string{os.Getenv("ORIGIN") + "/verify"}, nil)
 	mux.HandleFunc("/origin", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, "%q", os.Getenv("ORIGIN"))

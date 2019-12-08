@@ -1,6 +1,4 @@
-export let origin = ""
-
-const get = (url) => fetch(origin + url, {
+const get = (url) => fetch(url, {
   method: 'GET',
   cache: 'no-cache',
   credentials: 'include',
@@ -35,12 +33,8 @@ export const originc = () => get('/origin')
   .then(obj => console.log(obj))
 
 // document.cookie = 'Authorization=; Max-Age=-1;';
-
-// headers: {
-//   'Content-Type': 'application/json'
-// },
+// headers: {'Content-Type': 'application/json'},
 // body: JSON.stringify(obj),
-
 // console.log(response.headers.get('Authorization'))
 
 // get("/origin").then(origin => {

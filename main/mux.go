@@ -31,7 +31,7 @@ func NewServeMux(iss string, aud []string, r io.Reader) *http.ServeMux {
 		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
 	}))
 
-	x.HandleFunc("/verify", jwt.Verify(iss, c, func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/verify", jwt.Verify(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
 			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
