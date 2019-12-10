@@ -120,6 +120,8 @@ func Verify25519(fn http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		ctx = context.WithValue(ctx, Cookie("Authorization"), pl)
+
 		t2, err := base64.RawURLEncoding.DecodeString(t[2])
 		if err != nil {
 			ctx = context.WithValue(ctx, Cookie("Error"), err)
@@ -149,7 +151,6 @@ func Verify25519(fn http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		ctx = context.WithValue(ctx, Cookie("Authorization"), pl)
 		fn(w, r.WithContext(ctx))
 	}
 }
