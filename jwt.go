@@ -87,7 +87,7 @@ func Verify(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.Han
 	}
 }
 
-func Verify25519(fn http.HandlerFunc) http.HandlerFunc {
+func Verify25519(iss string, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -129,7 +129,7 @@ func Verify25519(fn http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		rp, err := http.NewRequest("GET", pl.Issuer, nil)
+		rp, err := http.NewRequest("GET", iss, nil)
 		if err != nil {
 			ctx = context.WithValue(ctx, Cookie("Error"), err)
 			fn(w, r.WithContext(ctx))
