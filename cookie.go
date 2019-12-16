@@ -10,17 +10,11 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/gbrlsnchs/jwt/v3"
 )
 
 type Cookie string
 
-type Authorization jwt.Payload
-
-type Algorithm jwt.Algorithm
-
-func Sign(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+func SignCookie(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -32,16 +26,16 @@ func Sign(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.Handl
 		}
 
 		now := time.Now()
-		pl := Authorization{
+		pl := Payload{
 			Issuer:         iss,
 			Subject:        cookie.Value,
-			Audience:       jwt.Audience(aud),
-			ExpirationTime: jwt.NumericDate(now.Add(time.Hour)),
-			IssuedAt:       jwt.NumericDate(now),
+			Audience:       Audience(aud),
+			ExpirationTime: NumericDate(now.Add(time.Hour)),
+			IssuedAt:       NumericDate(now),
 			JWTID:          randS64(),
 		}
 
-		token, err := jwt.Sign(pl, c)
+		token, err := Sign(pl, c)
 		if err != nil {
 			ctx = context.WithValue(ctx, Cookie("Error"), err)
 			fn(w, r.WithContext(ctx))
@@ -53,7 +47,7 @@ func Sign(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.Handl
 	}
 }
 
-func Verify(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+func VerifyCookie(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -65,24 +59,24 @@ func Verify(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.Han
 		}
 
 		var (
-			pl           jwt.Payload
+			pl           Payload
 			now          = time.Now()
-			hdValidator  = jwt.ValidateHeader
-			iatValidator = jwt.IssuedAtValidator(now)
-			expValidator = jwt.ExpirationTimeValidator(now)
-			issValidator = jwt.IssuerValidator(iss)
-			audValidator = jwt.AudienceValidator(jwt.Audience(aud))
-			plValidator  = jwt.ValidatePayload(&pl, iatValidator, expValidator, issValidator, audValidator)
+			hdValidator  = ValidateHeader
+			iatValidator = IssuedAtValidator(now)
+			expValidator = ExpirationTimeValidator(now)
+			issValidator = IssuerValidator(iss)
+			audValidator = AudienceValidator(Audience(aud))
+			plValidator  = ValidatePayload(&pl, iatValidator, expValidator, issValidator, audValidator)
 		)
 
-		_, err = jwt.Verify([]byte(cookie.Value), c, &pl, hdValidator, plValidator)
+		_, err = Verify([]byte(cookie.Value), c, &pl, hdValidator, plValidator)
 		if err != nil {
 			ctx = context.WithValue(ctx, Cookie("Error"), err)
 			fn(w, r.WithContext(ctx))
 			return
 		}
 
-		ctx = context.WithValue(ctx, Cookie("Authorization"), Authorization(pl))
+		ctx = context.WithValue(ctx, Cookie("Authorization"), Payload(pl))
 		fn(w, r.WithContext(ctx))
 	}
 }
@@ -112,7 +106,7 @@ func Verify25519(iss string, fn http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		var pl Authorization
+		var pl Payload
 		err = json.Unmarshal(t1, &pl)
 		if err != nil {
 			ctx = context.WithValue(ctx, Cookie("Error"), err)

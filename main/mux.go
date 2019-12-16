@@ -1,14 +1,28 @@
 package main
 
 import (
-	"io"
+	"crypto/ed25519"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gertcuykens/jwt"
 )
 
-func NewServeMux(iss string, aud []string, r io.Reader) *http.ServeMux {
-	c := NewEd25519()
+func NewServeMux() *http.ServeMux {
+	iss := os.Getenv("ORIGIN") + "/public"
+	aud := []string{os.Getenv("ORIGIN") + "/verify"}
+	c := func() jwt.PrivateKey {
+		b, err := base64.RawURLEncoding.DecodeString(os.Getenv("SEED"))
+		if err != nil {
+			panic(err)
+		}
+		return jwt.NewPrivateKey(b)
+	}()
 
 	x := http.NewServeMux()
 
@@ -17,7 +31,7 @@ func NewServeMux(iss string, aud []string, r io.Reader) *http.ServeMux {
 		w.Write(encodePublicKey(c.Public()))
 	})
 
-	x.HandleFunc("/sign", jwt.Sign(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/sign", jwt.SignCookie(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
 			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
@@ -31,14 +45,14 @@ func NewServeMux(iss string, aud []string, r io.Reader) *http.ServeMux {
 		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
 	}))
 
-	x.HandleFunc("/verify", jwt.Verify(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/verify", jwt.VerifyCookie(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
 			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
 			return
 		}
 		if v := ctx.Value(jwt.Cookie("Authorization")); v != nil {
-			pl := v.(jwt.Authorization)
+			pl := v.(jwt.Payload)
 			jsonResponse(w, pl, http.StatusOK)
 			return
 		}
@@ -52,7 +66,7 @@ func NewServeMux(iss string, aud []string, r io.Reader) *http.ServeMux {
 			return
 		}
 		if v := ctx.Value(jwt.Cookie("Authorization")); v != nil {
-			pl := v.(jwt.Authorization)
+			pl := v.(jwt.Payload)
 			jsonResponse(w, pl, http.StatusOK)
 			return
 		}
@@ -80,4 +94,29 @@ func NewServeMux(iss string, aud []string, r io.Reader) *http.ServeMux {
 	})
 
 	return x
+}
+
+func jsonResponse(w http.ResponseWriter, v interface{}, c int) {
+	if c != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "%d - %+v\n", c, v)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	j, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, http.StatusInternalServerError, " - ", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%q", err)
+		return
+	}
+	w.WriteHeader(c)
+	w.Write(j)
+}
+
+func encodePublicKey(publicKey ed25519.PublicKey) []byte {
+	x509PublicKey, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return nil
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509PublicKey})
 }

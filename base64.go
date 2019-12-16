@@ -1,6 +1,9 @@
-package main
+package jwt
 
-import "encoding/base64"
+import (
+	"encoding/base64"
+	"encoding/json"
+)
 
 func decodeBytes(enc []byte) ([]byte, error) {
 	encoding := base64.RawURLEncoding
@@ -24,3 +27,11 @@ func encodeBytes(dec []byte) []byte {
 
 // encoded := base64.RawURLEncoding.EncodeToString([]byte("hello"))
 // decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+
+func unmarshal(enc []byte, v interface{}) error {
+	dec, err := decodeBytes(enc)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(dec, v)
+}

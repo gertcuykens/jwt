@@ -2,19 +2,23 @@ package main
 
 import (
 	"crypto/ed25519"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/gertcuykens/jwt"
 )
 
 func ExampleServeMux() {
-	x := NewServeMux("http://localhost:8080", []string{"http://localhost:8080/"}, zero)
+	x := NewServeMux()
 	ts := httptest.NewServer(x)
 	defer ts.Close()
 
@@ -35,7 +39,7 @@ func ExampleServeMux() {
 
 	t1, _ := base64.RawURLEncoding.DecodeString(t[1])
 
-	var pl jwt.Authorization
+	var pl jwt.Payload
 	err := json.Unmarshal(t1, &pl)
 	if err != nil {
 		fmt.Println(err)
@@ -55,8 +59,29 @@ func ExampleServeMux() {
 	// verified: true
 }
 
-// r.URL, _ = url.Parse(ts.URL + "/verify")
-// get(r, func(b []byte) {})
+func get(r *http.Request, f func([]byte)) error {
+	res, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return err
+	}
+	b, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return err
+	}
+	f(b)
+	if c, ok := res.Header["Set-Cookie"]; ok {
+		r.Header = http.Header{"Cookie": c}
+	}
+	return nil
+}
 
-// r.URL, _ = url.Parse(ts.URL + "/25519")
-// get(r, func(b []byte) { fmt.Println(string(b)) })
+func decodePublicKey(pemPublicKey []byte) ed25519.PublicKey {
+	block, _ := pem.Decode(pemPublicKey)
+	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return nil
+	}
+	return publicKey.(ed25519.PublicKey)
+}
