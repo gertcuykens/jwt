@@ -148,3 +148,33 @@ func Verify25519(iss string, fn http.HandlerFunc) http.HandlerFunc {
 		fn(w, r.WithContext(ctx))
 	}
 }
+
+func VerifyRawCookie(key string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		cookie, err := r.Cookie(key)
+		if err != nil {
+			ctx = context.WithValue(ctx, Cookie("Error"), err)
+			fn(w, r.WithContext(ctx))
+			return
+		}
+
+		sig := strings.Split(cookie.Value, ".")
+		if len(sig) < 2 {
+			ctx = context.WithValue(ctx, Cookie("Error"), errors.New("no signiture"))
+			fn(w, r.WithContext(ctx))
+			return
+		}
+
+		err = c.Verify([]byte(sig[0]), []byte(sig[1]))
+		if err != nil {
+			ctx = context.WithValue(ctx, Cookie("Error"), err)
+			fn(w, r.WithContext(ctx))
+			return
+		}
+
+		ctx = context.WithValue(ctx, Cookie(key), sig[0])
+		fn(w, r.WithContext(ctx))
+	}
+}
