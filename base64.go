@@ -14,8 +14,6 @@ func decodeBytes(enc []byte) ([]byte, error) {
 	return dec, nil
 }
 
-// reader := base64.NewDecoder(base64.RawURLEncoding, reader)
-
 func encodeBytes(dec []byte) []byte {
 	encoding := base64.RawURLEncoding
 	enc := make([]byte, encoding.EncodedLen(len(dec)))
@@ -23,10 +21,17 @@ func encodeBytes(dec []byte) []byte {
 	return enc
 }
 
-// writer := base64.NewEncoder(base64.RawURLEncoding, writer)
-
-// encoded := base64.RawURLEncoding.EncodeToString([]byte("hello"))
-// decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+func marshal(v interface{}) ([]byte, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	enc := encodeBytes(b)
+	if err != nil {
+		return nil, err
+	}
+	return enc, nil
+}
 
 func unmarshal(enc []byte, v interface{}) error {
 	dec, err := decodeBytes(enc)
@@ -35,3 +40,9 @@ func unmarshal(enc []byte, v interface{}) error {
 	}
 	return json.Unmarshal(dec, v)
 }
+
+// reader := base64.NewDecoder(base64.RawURLEncoding, reader)
+// writer := base64.NewEncoder(base64.RawURLEncoding, writer)
+
+// encoded := base64.RawURLEncoding.EncodeToString([]byte("hello"))
+// decoded, err := base64.RawURLEncoding.DecodeString(encoded)
