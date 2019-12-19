@@ -29,7 +29,7 @@ func (pk PrivateKey) Sign(payload []byte) ([]byte, error) {
 }
 
 func (PrivateKey) Size() int {
-	return ed25519.SignatureSize
+	return encodeSize(ed25519.SignatureSize)
 }
 
 func (pk PrivateKey) Verify(payload, sig []byte) (err error) {

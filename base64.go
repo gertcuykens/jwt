@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 )
 
+var encoding = base64.RawURLEncoding
+
 func decodeBytes(enc []byte) ([]byte, error) {
-	encoding := base64.RawURLEncoding
 	dec := make([]byte, encoding.DecodedLen(len(enc)))
 	if _, err := encoding.Decode(dec, enc); err != nil {
 		return nil, err
@@ -15,10 +16,13 @@ func decodeBytes(enc []byte) ([]byte, error) {
 }
 
 func encodeBytes(dec []byte) []byte {
-	encoding := base64.RawURLEncoding
 	enc := make([]byte, encoding.EncodedLen(len(dec)))
 	encoding.Encode(enc, dec)
 	return enc
+}
+
+func encodeSize(size int) int {
+	return encoding.EncodedLen(size)
 }
 
 func marshal(v interface{}) ([]byte, error) {

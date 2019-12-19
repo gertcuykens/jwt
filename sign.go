@@ -58,7 +58,7 @@ func Sign(payload interface{}, alg Algorithm, opts ...SignOption) ([]byte, error
 	enc := base64.RawURLEncoding
 	h64len := enc.EncodedLen(len(hb))
 	p64len := enc.EncodedLen(len(pb))
-	sig64len := enc.EncodedLen(alg.Size())
+	sig64len := alg.Size()
 	token := make([]byte, h64len+1+p64len+1+sig64len)
 
 	enc.Encode(token, hb)
