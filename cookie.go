@@ -194,6 +194,11 @@ func VerifyRawCookie(key string, c Algorithm, fn http.HandlerFunc) http.HandlerF
 	}
 }
 
-func SignRawCookie(b []byte, c Algorithm) ([]byte, error) {
-	return c.Sign(encodeBytes(b))
+func SignRawCookie(b []byte, c Algorithm) string {
+	b = encodeBytes(b)
+	sig, err := c.Sign(b)
+	if err != nil {
+		b = encodeBytes([]byte(err.Error()))
+	}
+	return string(b) + "." + string(sig)
 }
