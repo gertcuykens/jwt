@@ -149,21 +149,6 @@ func Verify25519(iss string, fn http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func SignRawCookie(key string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fn(w, r)
-		ctx := r.Context()
-		if v := ctx.Value(Cookie(key)); v != nil {
-			value := encodeBytes(v.([]byte))
-			sig, err := c.Sign(value)
-			if err != nil {
-				value = encodeBytes([]byte(err.Error()))
-			}
-			http.SetCookie(w, &http.Cookie{Path: "/", Name: key, Value: string(value) + "." + string(sig), HttpOnly: true, SameSite: http.SameSiteNoneMode})
-		}
-	}
-}
-
 func VerifyRawCookie(key string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -182,13 +167,16 @@ func VerifyRawCookie(key string, c Algorithm, fn http.HandlerFunc) http.HandlerF
 			return
 		}
 
+		msg, err := decodeBytes([]byte(sig[0]))
+		if err != nil {
+			err = errors.New(err.Error())
+			ctx = context.WithValue(ctx, Cookie("Error"), err)
+			fn(w, r.WithContext(ctx))
+			return
+		}
+
 		if sig[1] == "" {
-			msg, err := decodeBytes([]byte(sig[0]))
-			if err != nil {
-				err = errors.New(err.Error())
-			} else {
-				err = errors.New(string(msg))
-			}
+			err = errors.New(string(msg))
 			ctx = context.WithValue(ctx, Cookie("Error"), err)
 			fn(w, r.WithContext(ctx))
 			return
@@ -201,7 +189,7 @@ func VerifyRawCookie(key string, c Algorithm, fn http.HandlerFunc) http.HandlerF
 			return
 		}
 
-		ctx = context.WithValue(ctx, Cookie(key), sig[0])
+		ctx = context.WithValue(ctx, Cookie(key), msg)
 		fn(w, r.WithContext(ctx))
 	}
 }
