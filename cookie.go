@@ -14,37 +14,26 @@ import (
 
 type Cookie string
 
-func SignCookie(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-
-		cookie, err := r.Cookie("Authorization")
-		if err != nil {
-			ctx = context.WithValue(ctx, Cookie("Error"), err)
-			fn(w, r.WithContext(ctx))
-			return
-		}
-
-		now := time.Now()
-		pl := Payload{
-			Issuer:         iss,
-			Subject:        cookie.Value,
-			Audience:       Audience(aud),
-			ExpirationTime: NumericDate(now.Add(time.Hour)),
-			IssuedAt:       NumericDate(now),
-			JWTID:          randS64(),
-		}
-
-		token, err := Sign(pl, c)
-		if err != nil {
-			ctx = context.WithValue(ctx, Cookie("Error"), err)
-			fn(w, r.WithContext(ctx))
-			return
-		}
-
-		ctx = context.WithValue(ctx, Cookie("Authorization"), string(token))
-		fn(w, r.WithContext(ctx))
+func SignCookie(c Algorithm, s string, iss string, aud []string) ([]byte, error) {
+	now := time.Now()
+	pl := Payload{
+		Issuer:         iss,
+		Subject:        s,
+		Audience:       Audience(aud),
+		ExpirationTime: NumericDate(now.Add(time.Hour)),
+		IssuedAt:       NumericDate(now),
+		JWTID:          randS64(),
 	}
+	return Sign(c, pl)
+}
+
+func SignRawCookie(c Algorithm, b []byte) string {
+	b = encodeBytes(b)
+	sig, err := c.Sign(b)
+	if err != nil {
+		b = encodeBytes([]byte(err.Error()))
+	}
+	return string(b) + "." + string(sig)
 }
 
 func VerifyCookie(iss string, aud []string, c Algorithm, fn http.HandlerFunc) http.HandlerFunc {
@@ -192,13 +181,4 @@ func VerifyRawCookie(key string, c Algorithm, fn http.HandlerFunc) http.HandlerF
 		ctx = context.WithValue(ctx, Cookie(key), msg)
 		fn(w, r.WithContext(ctx))
 	}
-}
-
-func SignRawCookie(b []byte, c Algorithm) string {
-	b = encodeBytes(b)
-	sig, err := c.Sign(b)
-	if err != nil {
-		b = encodeBytes([]byte(err.Error()))
-	}
-	return string(b) + "." + string(sig)
 }

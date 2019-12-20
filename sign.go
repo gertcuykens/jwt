@@ -24,7 +24,7 @@ func KeyID(kid string) SignOption {
 }
 
 // Sign signs a payload with alg.
-func Sign(payload interface{}, alg Algorithm, opts ...SignOption) ([]byte, error) {
+func Sign(alg Algorithm, payload interface{}, opts ...SignOption) ([]byte, error) {
 	var hd Header
 	for _, opt := range opts {
 		opt(&hd)

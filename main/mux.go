@@ -31,19 +31,20 @@ func NewServeMux() *http.ServeMux {
 		w.Write(encodePublicKey(c.Public()))
 	})
 
-	x.HandleFunc("/sign", jwt.SignCookie(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
-			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
+	x.HandleFunc("/sign", func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("Authorization")
+		if err != nil {
+			jsonResponse(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		if v := ctx.Value(jwt.Cookie("Authorization")); v != nil {
-			http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: v.(string), HttpOnly: true, SameSite: http.SameSiteNoneMode})
-			jsonResponse(w, v.(string), http.StatusOK)
+		v, err := jwt.SignCookie(c, cookie.Value, iss, aud)
+		if err != nil {
+			jsonResponse(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
-	}))
+		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: string(v), HttpOnly: true, SameSite: http.SameSiteNoneMode})
+		jsonResponse(w, string(v), http.StatusOK)
+	})
 
 	x.HandleFunc("/verify", jwt.VerifyCookie(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
