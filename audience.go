@@ -2,15 +2,13 @@ package jwt
 
 import "encoding/json"
 
-// Audience is a special claim that may either be
-// a single string or an array of strings, as per the RFC 7519.
+// Audience RFC 7519.
 type Audience []string
 
-// MarshalJSON implements a marshaling function for "aud" claim.
 func (a Audience) MarshalJSON() ([]byte, error) {
 	switch len(a) {
 	case 0:
-		return json.Marshal("") // nil or empty slice returns an empty string
+		return json.Marshal("")
 	case 1:
 		return json.Marshal(a[0])
 	default:
@@ -18,24 +16,20 @@ func (a Audience) MarshalJSON() ([]byte, error) {
 	}
 }
 
-// UnmarshalJSON implements an unmarshaling function for "aud" claim.
 func (a *Audience) UnmarshalJSON(b []byte) error {
-	var (
-		v   interface{}
-		err error
-	)
-	if err = json.Unmarshal(b, &v); err != nil {
+	var v interface{}
+	if err := json.Unmarshal(b, &v); err != nil {
 		return err
 	}
-	switch vv := v.(type) {
+	switch w := v.(type) {
 	case string:
 		aud := make(Audience, 1)
-		aud[0] = vv
+		aud[0] = w
 		*a = aud
 	case []interface{}:
-		aud := make(Audience, len(vv))
-		for i := range vv {
-			aud[i] = vv[i].(string)
+		aud := make(Audience, len(w))
+		for i := range w {
+			aud[i] = w[i].(string)
 		}
 		*a = aud
 	}

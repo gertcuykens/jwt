@@ -3,32 +3,28 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/gertcuykens/jwt"
 )
 
-func NewServeMux() *http.ServeMux {
-	iss := os.Getenv("ORIGIN") + "/public"
-	aud := []string{os.Getenv("ORIGIN") + "/verify"}
-	c := func() jwt.PrivateKey {
-		b, err := base64.RawURLEncoding.DecodeString(os.Getenv("SEED"))
-		if err != nil {
-			panic(err)
-		}
-		return jwt.NewPrivateKey(b)
-	}()
-
+func NewServeMux(iss string, aud []string, pk ed25519.PrivateKey) *http.ServeMux {
 	x := http.NewServeMux()
 
 	x.HandleFunc("/public", func(w http.ResponseWriter, r *http.Request) {
+		x509PublicKey, err := x509.MarshalPKIXPublicKey(pk.Public().(ed25519.PublicKey))
+		if err != nil {
+			jsonResponse(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-		w.Write(encodePublicKey(c.Public()))
+		w.Write(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509PublicKey}))
 	})
 
 	x.HandleFunc("/sign", func(w http.ResponseWriter, r *http.Request) {
@@ -37,42 +33,51 @@ func NewServeMux() *http.ServeMux {
 			jsonResponse(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		v, err := jwt.SignCookie(c, cookie.Value, iss, aud)
+		pl := jwt.Payload{
+			PrivateKey:     pk,
+			Issuer:         iss,
+			Audience:       aud,
+			ExpirationTime: jwt.NumericDate(time.Now().Add(1 * time.Hour)),
+			Subject:        cookie.Value,
+		}
+		v, err := json.Marshal(pl)
 		if err != nil {
 			jsonResponse(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: string(v), HttpOnly: true, SameSite: http.SameSiteNoneMode})
-		jsonResponse(w, string(v), http.StatusOK)
+		c := strings.Trim(string(v), `"`)
+		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: c, HttpOnly: true, SameSite: http.SameSiteNoneMode})
+		jsonResponse(w, c, http.StatusOK)
 	})
 
-	x.HandleFunc("/verify", jwt.VerifyCookie(iss, aud, c, func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
-			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
+	x.HandleFunc("/verify", func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("Authorization")
+		if err != nil {
+			jsonResponse(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		if v := ctx.Value(jwt.Cookie("Authorization")); v != nil {
-			pl := v.(jwt.Payload)
-			jsonResponse(w, pl, http.StatusOK)
-			return
-		}
-		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
-	}))
 
-	x.HandleFunc("/25519", jwt.Verify25519(iss, func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		if v := ctx.Value(jwt.Cookie("Error")); v != nil {
-			jsonResponse(w, v.(error).Error(), http.StatusBadRequest)
+		pl := jwt.Payload{
+			PublicKey: pk.Public().(ed25519.PublicKey),
+			Validator: []jwt.Validator{
+				jwt.ValidIssuer(iss),
+				jwt.ValidAudience(jwt.Audience(aud)),
+				jwt.ValidNotBefore(time.Now()),
+				jwt.ValidIssuedAt(time.Now()),
+				jwt.ValidExpirationTime(time.Now()),
+			},
+		}
+
+		v := fmt.Sprintf(`"%s"`, cookie.Value)
+
+		err = pl.UnmarshalJSON([]byte(v))
+		if err != nil {
+			jsonResponse(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
-		if v := ctx.Value(jwt.Cookie("Authorization")); v != nil {
-			pl := v.(jwt.Payload)
-			jsonResponse(w, pl, http.StatusOK)
-			return
-		}
-		jsonResponse(w, "authorization not found in context", http.StatusUnauthorized)
-	}))
+
+		jsonResponse(w, cookie.Value, http.StatusOK)
+	})
 
 	x.HandleFunc("/authorization", func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Authorization")
@@ -111,13 +116,4 @@ func jsonResponse(w http.ResponseWriter, v interface{}, c int) {
 	}
 	w.WriteHeader(c)
 	w.Write(j)
-}
-
-func encodePublicKey(publicKey ed25519.PublicKey) []byte {
-	x509PublicKey, err := x509.MarshalPKIXPublicKey(publicKey)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		return nil
-	}
-	return pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509PublicKey})
 }
