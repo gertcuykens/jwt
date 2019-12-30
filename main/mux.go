@@ -91,12 +91,7 @@ func NewServeMux(iss string, aud []string, pk ed25519.PrivateKey) *http.ServeMux
 
 	x.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: "", HttpOnly: true, SameSite: http.SameSiteNoneMode, MaxAge: -1})
-		cookie, err := r.Cookie("Authorization")
-		if err != nil {
-			jsonResponse(w, err.Error(), http.StatusOK)
-			return
-		}
-		jsonResponse(w, cookie.Value, http.StatusOK)
+		jsonResponse(w, nil, http.StatusOK)
 	})
 
 	return x
