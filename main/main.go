@@ -23,16 +23,7 @@ func (h *myHandler) GET(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-func main() {
-
-	var pk ed25519.PrivateKey = func() ed25519.PrivateKey {
-		seed, err := base64.RawURLEncoding.DecodeString(os.Getenv("SEED"))
-		if err != nil {
-			panic(err)
-		}
-		return ed25519.NewKeyFromSeed(seed)
-	}()
-
+func newMyHandler(pk ed25519.PrivateKey) http.HandlerFunc {
 	var fn myHandler
 	fn = func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("Authorization")
@@ -70,10 +61,22 @@ func main() {
 			w.Write([]byte("method not allowed"))
 		}
 	}
+	return http.HandlerFunc(fn)
+}
+
+func main() {
+
+	var pk ed25519.PrivateKey = func() ed25519.PrivateKey {
+		seed, err := base64.RawURLEncoding.DecodeString(os.Getenv("SEED"))
+		if err != nil {
+			panic(err)
+		}
+		return ed25519.NewKeyFromSeed(seed)
+	}()
 
 	x := http.NewServeMux()
 
-	x.Handle("/", http.HandlerFunc(fn))
+	x.Handle("/", newMyHandler(pk))
 
 	x.HandleFunc("/public", func(w http.ResponseWriter, r *http.Request) {
 		x509PublicKey, err := x509.MarshalPKIXPublicKey(pk.Public().(ed25519.PublicKey))
