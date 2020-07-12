@@ -115,7 +115,7 @@ func main() {
 
 	x.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: "", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1})
-		// w.Header().Set("Clear-Site-Data", `"cookies"`)
+		w.Header().Set("Clear-Site-Data", `"cookies"`)
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 		w.Header().Set("Location", "/")
 		w.WriteHeader(http.StatusSeeOther)
