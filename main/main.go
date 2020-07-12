@@ -43,7 +43,7 @@ func main() {
 		}
 
 		validator := []jwt.Validator{
-			jwt.ValidIssuer(r.Referer()),
+			jwt.ValidIssuer(r.Host),
 			jwt.ValidAudience([]string{"aud"}),
 			jwt.ValidNotBefore(time.Now()),
 			jwt.ValidIssuedAt(time.Now()),
@@ -90,13 +90,13 @@ func main() {
 	x.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		u, p, ok := r.BasicAuth()
 		if !ok || p != "admin" {
-			w.Header().Set("WWW-Authenticate", `Basic realm="`+r.Referer()+`"`)
+			w.Header().Set("WWW-Authenticate", `Basic realm="`+r.Host+`"`)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 		pl := jwt.Payload{
 			PrivateKey:     pk,
-			Issuer:         r.Referer(),
+			Issuer:         r.Host,
 			Audience:       []string{"aud"},
 			ExpirationTime: jwt.NumericDate(time.Now().Add(1 * time.Hour)),
 			Subject:        u,
