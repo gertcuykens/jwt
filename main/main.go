@@ -112,8 +112,9 @@ func main() {
 		}
 		c := strings.Trim(string(v), `"`)
 		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: c, HttpOnly: true, SameSite: http.SameSiteStrictMode})
-		w.Header().Set("Location", "/")
-		w.WriteHeader(http.StatusSeeOther)
+		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
 
 	x.HandleFunc("/api/logout", func(w http.ResponseWriter, r *http.Request) {
