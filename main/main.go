@@ -125,7 +125,11 @@ func main() {
 		w.WriteHeader(http.StatusSeeOther)
 	})
 
-	if err := http.ListenAndServe(":8081", x); err != nil {
+	if err := http.ListenAndServeTLS(":8081", "tls/crt.pem", "tls/key.pem", x); err != nil {
 		panic(err)
 	}
+
+	// if err := http.ListenAndServe(":8081", x); err != nil {
+	// 	panic(err)
+	// }
 }
