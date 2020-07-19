@@ -78,7 +78,7 @@ func main() {
 
 	x.Handle("/", newMyHandler(pk))
 
-	x.HandleFunc("/public", func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/api/public", func(w http.ResponseWriter, r *http.Request) {
 		x509PublicKey, err := x509.MarshalPKIXPublicKey(pk.Public().(ed25519.PublicKey))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -90,7 +90,7 @@ func main() {
 		w.Write(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509PublicKey}))
 	})
 
-	x.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
 		u, p, ok := r.BasicAuth()
 		if !ok || p != "admin" {
 			w.Header().Set("WWW-Authenticate", `Basic realm="`+r.Host+`"`)
@@ -116,7 +116,7 @@ func main() {
 		w.WriteHeader(http.StatusSeeOther)
 	})
 
-	x.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+	x.HandleFunc("/api/logout", func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: "", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1})
 		w.Header().Set("Clear-Site-Data", `"cookies"`)
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
@@ -124,7 +124,7 @@ func main() {
 		w.WriteHeader(http.StatusSeeOther)
 	})
 
-	if err := http.ListenAndServe(":8080", x); err != nil {
+	if err := http.ListenAndServe(":8081", x); err != nil {
 		panic(err)
 	}
 }
