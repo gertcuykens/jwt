@@ -119,10 +119,12 @@ func main() {
 
 	x.HandleFunc("/api/logout", func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Path: "/", Name: "Authorization", Value: "", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1})
-		w.Header().Set("Clear-Site-Data", `"cookies"`)
+		// w.Header().Set("Clear-Site-Data", `"cookies"`)
 		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-		w.Header().Set("Location", "/")
-		w.WriteHeader(http.StatusSeeOther)
+		// w.Header().Set("Location", "/")
+		// w.WriteHeader(http.StatusSeeOther)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
 
 	if err := http.ListenAndServeTLS(":8081", "tls/crt.pem", "tls/key.pem", x); err != nil {
